@@ -1,0 +1,37 @@
+desc:JSOperative
+
+import op.array.jsfx-inc
+import op.fft_real_synth.jsfx-inc
+import op.osc.jsfx-inc
+import op.wavetable.jsfx-inc
+
+@init
+
+osc1.buf = 100000;
+osc1.open_file("tilr_JSOperative/Sine 1.wav", four1);
+osc1.wave_init(osc1.buf, osc1.len);
+
+osc2.buf = 200000;
+osc2.open_file("tilr_JSOperative/Sine 1.wav", four2);
+osc2.wave_init(osc2.buf, osc2.len);
+
+phase = 0;
+phaseb = 0;
+
+@sample
+
+//osc1.wave_setdt(440 / srate);
+//wave = osc1.wave_spline3();
+freq = 220/srate;
+
+osc2.wave_setdt(freq);
+osc2.wave_sync(phaseb);
+mod = osc2.wave_spline3();
+phaseb = osc2.t;
+
+osc2.wave_setdt(freq + mod * freq * 12 * 2);
+osc2.wave_sync(phase);
+wave = osc2.wave_spline3();
+phase = osc2.t;
+
+spl0 = spl1 = wave * 0.25;
