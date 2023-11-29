@@ -1,9 +1,11 @@
 desc:JSOperative
 
-slider1:_fm11=1<1, 13, 0.01:log>FM 1->1
+slider1:_fm11=13<1, 13, 0.01:log>FM 1->1
 slider2:_fm12=1<1, 13, 0.01:log>FM 1->2
 slider3:_fm21=1<1, 13, 0.01:log>FM 2->1
 slider4:_fm22=1<1, 13, 0.01:log>FM 2->2
+
+//slider6:_fm32=1<1, 13, 0.01:log>FM 3->2
 
 import op.array.jsfx-inc
 import op.fft_real_synth.jsfx-inc
@@ -30,11 +32,23 @@ osc4.buf = 400000;
 osc4.open_file("tilr_JSOperative/Sine 1.wav", four4);
 osc4.wave_init(osc4.buf, osc4.len);
 
+phase1b = 0;
+phase1m = 0;
+phace1c = 0;
+phase2b = 0;
+phase2m = 0;
+phase2c = 0;
+phase3b = 0;
+phase3m = 0;
+phase3c = 0;
+
 @slider
 
+fm11 = _fm11 - 1;
+fm12 = _fm12 - 1;
 fm21 = _fm21 - 1;
-phase1 = 0;
-phase2 = 0;
+fm22 = _fm22 - 1;
+fm32 = _fm32 - 1;
 freq1 = 220/srate;
 freq2 = 220/srate;
 freq3 = 220/srate;
@@ -43,17 +57,38 @@ freq4 = 220/srate;
 @sample
 
 // calculate base signals
+osc1.wave_sync(phase1b);
+osc1.wave_setdt(freq1);
+s1 = osc1.wave_spline3();
+phase1b = osc1.t;
+
+osc2.wave_sync(phase2b);
+osc2.wave_setdt(freq2);
+s2 = osc2.wave_spline3();
+phase2b = osc2.t;
 
 // calculate modulating signals
-osc1.wave_sync(phase1);
-osc1.wave_setdt(freq1);
+osc1.wave_sync(phase1m);
+osc1.wave_setdt(freq1 + (s1 * freq1 * fm11));
 mod1 = osc1.wave_spline3();
-phase1 = osc1.t;
+phase1m = osc1.t;
+
+osc2.wave_sync(phase2m);
+osc2.wave_setdt(freq2 + (s1 * freq1 * fm12));
+mod2 = osc2.wave_spline3();
+phase2m = osc2.t;
 
 // calculate carrier signals
-osc2.wave_sync(phase2);
-osc2.wave_setdt(freq2 + mod1 * freq1 * fm21);
-wave = osc2.wave_spline3();
-phase2 = osc2.t;
 
-spl0 = spl1 = wave * 0.25;
+osc1.wave_sync(phase1c);
+F1 = freq1 + car1 * freq1 * fm11;
+osc1.wave_setdt(freq1 + (mod1 * freq1 * fm11));
+car1 = osc1.wave_spline3();
+phase1c = osc1.t;
+
+osc2.wave_sync(phase2c);
+osc2.wave_setdt(freq2 + (s1 * freq1 * fm12));
+car2 = osc2.wave_spline3();
+phase2c = osc2.t;
+
+spl0 = spl1 = car1 * 0.25;
