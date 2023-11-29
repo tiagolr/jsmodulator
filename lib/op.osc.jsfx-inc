@@ -71,6 +71,18 @@ function resynthesize(buf, len, four*)
   semi_normalize_wave(buf, len); // correct signal strenght after summing frequencies
 );
 
+function render_sin(buf, size, gain)
+  local(x, dx)
+(
+  x = 0;
+  dx = 2*$pi / size;
+  loop(size,
+    buf[] = gain * sin(x);
+    buf += 1;
+    x += dx;
+  );
+);
+
 function open_file (filename, four*)
 instance(buf, len)
 local(filehandle, wavechn, wavesrate)
@@ -88,6 +100,11 @@ local(filehandle, wavechn, wavesrate)
       len = (len / 2) | 0;
     );
     normalize_wave(buf, len);
+    filename == "tilr_JSOperative/Sine 1.wav" ? (
+      // FIX - render a perfect sine wave as I couldn't
+      //       a perfect single cycle one, fixes flanging effects
+      render_sin(buf, len, 1);
+    );
     synthesize(buf, len, four);
     resynthesize(buf, len, four);
   );

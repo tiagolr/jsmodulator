@@ -1,11 +1,18 @@
 desc:JSOperative
 
+slider1:_fm11=1<1, 13, 0.01:log>FM 1->1
+slider2:_fm12=1<1, 13, 0.01:log>FM 1->2
+slider3:_fm21=1<1, 13, 0.01:log>FM 2->1
+slider4:_fm22=1<1, 13, 0.01:log>FM 2->2
+
 import op.array.jsfx-inc
 import op.fft_real_synth.jsfx-inc
 import op.osc.jsfx-inc
 import op.wavetable.jsfx-inc
 
 @init
+
+function sine_wave(cycle) (sin(cycle * 2 * $pi););
 
 osc1.buf = 100000;
 osc1.open_file("tilr_JSOperative/Sine 1.wav", four1);
@@ -15,23 +22,38 @@ osc2.buf = 200000;
 osc2.open_file("tilr_JSOperative/Sine 1.wav", four2);
 osc2.wave_init(osc2.buf, osc2.len);
 
-phase = 0;
-phaseb = 0;
+osc3.buf = 300000;
+osc3.open_file("tilr_JSOperative/Sine 1.wav", four3);
+osc3.wave_init(osc3.buf, osc3.len);
+
+osc4.buf = 400000;
+osc4.open_file("tilr_JSOperative/Sine 1.wav", four4);
+osc4.wave_init(osc4.buf, osc4.len);
+
+@slider
+
+fm21 = _fm21 - 1;
+phase1 = 0;
+phase2 = 0;
+freq1 = 220/srate;
+freq2 = 220/srate;
+freq3 = 220/srate;
+freq4 = 220/srate;
 
 @sample
 
-//osc1.wave_setdt(440 / srate);
-//wave = osc1.wave_spline3();
-freq = 220/srate;
+// calculate base signals
 
-osc2.wave_setdt(freq);
-osc2.wave_sync(phaseb);
-mod = osc2.wave_spline3();
-phaseb = osc2.t;
+// calculate modulating signals
+osc1.wave_sync(phase1);
+osc1.wave_setdt(freq1);
+mod1 = osc1.wave_spline3();
+phase1 = osc1.t;
 
-osc2.wave_setdt(freq + mod * freq * 12 * 2);
-osc2.wave_sync(phase);
+// calculate carrier signals
+osc2.wave_sync(phase2);
+osc2.wave_setdt(freq2 + mod1 * freq1 * fm21);
 wave = osc2.wave_spline3();
-phase = osc2.t;
+phase2 = osc2.t;
 
 spl0 = spl1 = wave * 0.25;
