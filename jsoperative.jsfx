@@ -1,10 +1,9 @@
 desc:JSOperative
 
-slider1:_fm11=13<1, 13, 0.01:log>FM 1->1
-slider2:_fm12=1<1, 13, 0.01:log>FM 1->2
-slider3:_fm21=1<1, 13, 0.01:log>FM 2->1
-slider4:_fm22=1<1, 13, 0.01:log>FM 2->2
-
+//slider1:_fm11=13<1, 13, 0.01:log>FM 1->1
+//slider2:_fm12=1<1, 13, 0.01:log>FM 1->2
+//slider3:_fm21=1<1, 13, 0.01:log>FM 2->1
+//slider4:_fm22=1<1, 13, 0.01:log>FM 2->2
 //slider6:_fm32=1<1, 13, 0.01:log>FM 3->2
 
 import op.array.jsfx-inc
@@ -44,17 +43,19 @@ phase3c = 0;
 
 @slider
 
-fm11 = _fm11 - 1;
-fm12 = _fm12 - 1;
-fm21 = _fm21 - 1;
-fm22 = _fm22 - 1;
-fm32 = _fm32 - 1;
+//fm11 = _fm11 - 1;
+//fm12 = _fm12 - 1;
+//fm21 = _fm21 - 1;
+//fm22 = _fm22 - 1;
+//fm32 = _fm32 - 1;
+freq = 220/srate;
 freq1 = 220/srate;
 freq2 = 220/srate;
 freq3 = 220/srate;
 freq4 = 220/srate;
 
 @sample
+
 
 // calculate base signals
 osc1.wave_sync(phase1b);
@@ -80,15 +81,16 @@ phase2m = osc2.t;
 
 // calculate carrier signals
 
-osc1.wave_sync(phase1c);
-F1 = freq1 + car1 * freq1 * fm11;
-osc1.wave_setdt(freq1 + (mod1 * freq1 * fm11));
+osc1.wave_setdt(freq);
+osc1.wave_sync(phase1c + car1 * 0.25);
 car1 = osc1.wave_spline3();
-phase1c = osc1.t;
+phase1c += freq;
+phase1c > 1 ? phase1c -= 1;
 
 osc2.wave_sync(phase2c);
-osc2.wave_setdt(freq2 + (s1 * freq1 * fm12));
+osc2.wave_setdt(freq2);
 car2 = osc2.wave_spline3();
 phase2c = osc2.t;
 
 spl0 = spl1 = car1 * 0.25;
+
