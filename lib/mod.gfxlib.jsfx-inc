@@ -71,7 +71,7 @@ function mouse_in_rect (x, y, w ,h) (
   mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
 );
 
-function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, val_label)
+function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, val_label, is_matrix_knob)
 local (scale)
 (
   set_color(0x282D32);
@@ -108,7 +108,7 @@ local (scale)
 
   set_color(0xFFFFFF);
   gfx_x = x - 20;
-  gfx_y = y + 20 * 2 + 5;
+  gfx_y = is_matrix_knob ? y + 20 * 2-1: y + 20 * 2 + 5;
   selknob_nslider == nslider ? (
     gfx_drawstr(val_label, 1, x+20+20*2, y+100);
   ) : (
@@ -161,6 +161,90 @@ function harmonic_phase(h1, h2) (
 
 function harmonic_amplitude(h1, h2) (
   sqrt(pow(h1,2) + pow(h2,2));
+);
+
+function draw_number(x, y, w, h, nslider, default, _min, _max)
+local(val)
+(
+  val = slider(nslider);
+  set_color(0xFFFFFF);
+  gfx_x = x;
+  gfx_y = y;
+  gfx_drawstr(sprintf(#, "%03d", val), 1+4, x+w, y+h);
+  mouse_in_rect(x, y, w, h) ? (
+    mouse.double_click ? (
+      slider(nslider) = default;
+      doubleclk_nslider = nslider;
+    );
+    mouse.left_click ? (
+      selknob_nslider = nslider;
+      selknob_min = _min;
+      selknob_max = _max;
+      selknob_is_log = 0;
+    );
+    mouse.wheel ? (
+      wheelknob_nslider = nslider;
+      wheelknob_min = _min;
+      wheelknob_max = _max;
+      wheelknob_is_log = 0;
+    );
+  );
+);
+
+function draw_matrix(x, y, w, h)
+local (row, col)
+(
+  set_color(0xFFFFFF);
+  gfx_a = 0.5;
+  gfx_x = x-40;
+  gfx_y = y-20;
+  gfx_drawstr("FM", 1+4, x, y);
+  gfx_x = x;
+  gfx_y = y-20;
+  gfx_drawstr("O1", 1+4, x+w/6, y);
+  gfx_x = x+w/6;
+  gfx_y = y-20;
+  gfx_drawstr("O2", 1+4, x+w/6*2, y);
+  gfx_x = x+w/6*2;
+  gfx_y = y-20;
+  gfx_drawstr("O3", 1+4, x+w/6*3, y);
+  gfx_x = x+w/6*3;
+  gfx_y = y-20;
+  gfx_drawstr("O4", 1+4, x+w/6*4, y);
+  gfx_x = x+w/6*4;
+  gfx_y = y-20;
+  gfx_drawstr("PAN", 1+4, x+w/6*5, y);
+  gfx_x = x+w/6*5;
+  gfx_y = y-20;
+  gfx_drawstr("OUT", 1+4, x+w/6*6, y);
+  gfx_x = x - 40;
+  gfx_y = y;
+  gfx_drawstr("O1", 1+4, x, y+h/4);
+  gfx_x = x - 40;
+  gfx_y = y + h/4;
+  gfx_drawstr("O2", 1+4, x, y+h/4*2);
+  gfx_x = x - 40;
+  gfx_y = y + h/4*2;
+  gfx_drawstr("O3", 1+4, x, y+h/4*3);
+  gfx_x = x - 40;
+  gfx_y = y + h/4*3;
+  gfx_drawstr("O4", 1+4, x, y+h/4*4);
+  gfx_a = 1;
+  loop(row=0; 4,
+    loop(col=0; 4,
+      draw_knob(x + col*w/6 + 5, y+row*h/4 + 5, 240+col*4+row, "", 0, 0, 100, 0, 0, sprintf(#, "%d", slider(240+col*4+row)), 1);
+      col += 1;
+    );
+    row += 1;
+  );
+  loop(row=0; 4,
+    draw_knob(x + 4*w/6+5, y+row*h/4 + 5, 21 + 20*row, "", 0, -100, 100, 0, 1, sprintf(#, "%d", slider(21+20*row)), 1);
+    row += 1;
+  );
+  loop(row=0; 4,
+    draw_knob(x + 5*w/6+5, y+row*h/4 + 5, 20 + 20*row, "", 0, 0, 100, 0, 0, sprintf(#, "%d", slider(20+20*row)), 1);
+    row += 1;
+  );
 );
 
 function draw_harmonics(x, y, w, h, buf, nharm)

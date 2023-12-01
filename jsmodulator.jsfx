@@ -1,25 +1,47 @@
 desc:JSModulator
 tags: synth, instrument
 
-slider240:_fm11=0<0,100,.1>Fm11
-slider241:_fm12=0<0,100,.1>Fm12
-slider242:_fm13=0<0,100,.1>Fm13
-slider243:_fm14=0<0,100,.1>Fm14
+slider1:_vol=100<0, 100, 0.1>-Master Volume
+slider2:_vel=100<0, 100, 0.1>-Velocity
+slider3:_att=1<1, 5000, 1:log>-Attack
+slider4:_dec=1<1, 5000, 1:log>-Decay
+slider5:_sus=100<0, 100, 0.1>-Sustain
+slider6:_rel=500<0, 5000, 1:log>-Release
+slider7:_att_t=0<-100,100,1>Attack curve
+slider8:_dec_t=0<-100,100,1>Decay curve
+slider9:_rel_t=0<-100,100,1>Release curve
 
-slider244:_fm21=0<0,100,.1>Fm21
-slider245:_fm22=0<0,100,.1>Fm22
-slider246:_fm23=0<0,100,.1>Fm23
-slider247:_fm24=0<0,100,.1>Fm24
+slider20:_o1_vol=80<0,100,1>-Osc1 Vol
+slider21:_o1_pan=0<-100,100,0.01>-Osc1 Pan
 
-slider248:_fm31=0<0,100,.1>Fm31
-slider249:_fm32=0<0,100,.1>Fm32
-slider250:_fm33=0<0,100,.1>Fm33
-slider251:_fm34=0<0,100,.1>Fm34
+slider40:_o2_vol=0<0,100,1>-Osc2 Vol
+slider41:_o2_pan=0<-100,100,0.01>-Osc2 Pan
 
-slider252:_fm41=0<0,100,.1>Fm41
-slider253:_fm42=0<0,100,.1>Fm42
-slider254:_fm43=0<0,100,.1>Fm43
-slider255:_fm44=0<0,100,.1>Fm44
+slider60:_o3_vol=0<0,100,1>-Osc3 Vol
+slider61:_o3_pan=0<-100,100,0.01>-Osc3 Pan
+
+slider80:_o4_vol=0<0,100,1>-Osc4 Vol
+slider81:_o4_pan=0<-100,100,0.01>-Osc4 Pan
+
+slider240:_fm11=0<0,100,.1>-Fm11
+slider241:_fm12=0<0,100,.1>-Fm12
+slider242:_fm13=0<0,100,.1>-Fm13
+slider243:_fm14=0<0,100,.1>-Fm14
+
+slider244:_fm21=0<0,100,.1>-Fm21
+slider245:_fm22=0<0,100,.1>-Fm22
+slider246:_fm23=0<0,100,.1>-Fm23
+slider247:_fm24=0<0,100,.1>-Fm24
+
+slider248:_fm31=0<0,100,.1>-Fm31
+slider249:_fm32=0<0,100,.1>-Fm32
+slider250:_fm33=0<0,100,.1>-Fm33
+slider251:_fm34=0<0,100,.1>-Fm34
+
+slider252:_fm41=0<0,100,.1>-Fm41
+slider253:_fm42=0<0,100,.1>-Fm42
+slider254:_fm43=0<0,100,.1>-Fm43
+slider255:_fm44=0<0,100,.1>-Fm44
 
 import mod.array.jsfx-inc
 import mod.fft_real_synth.jsfx-inc
@@ -35,9 +57,18 @@ poly.array_init(1000, 127, 10); // [note, freq, ph1, ph2, ph3, ph4, signal1, sig
 remove_notes.array_init(5000, 127, 1); // remove notes array
 envelope = 10000; // 18 * 127 - master envelope per key
 
+gfx_panel = 0; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
+
+function db2gain (db) local (val) (
+  val = 10^(db / 20); 
+  val <= 0.001 ? 0 : val;
+);
 function round(in) (floor(in + 0.5 * sign(in)););
 function note2freq(n) (440 * pow(2, (n - 69) / 12););
 function freq2note(f) ( round(12*(log(f/440)/log(2))+69); );
+// convert [0,100] scale to exponential [0,4]
+function normalizeFMSlider(val) ( 4 * (val/100) ^ 2; );
+function normalizeVolSlider(val) ( val * 60 / 100 - 60 );
 
 osc1.buf = 100000;
 osc1.open_file("tilr_JSOperative/Sine 1.wav", four1);
@@ -55,10 +86,6 @@ osc4.buf = 400000;
 osc4.open_file("tilr_JSOperative/Sine 1.wav", four4);
 osc4.wave_init(osc4.buf, osc4.len);
 
-// convert [0,100] scale to exponential [0,4]
-function normalizeFMSlider(val) (
-  4 * (val/100) ^ 2;
-);
 
 function on_slider() (
   fm11 = normalizeFMSlider(_fm11);
@@ -80,6 +107,9 @@ function on_slider() (
   fm42 = normalizeFMSlider(_fm42);
   fm43 = normalizeFMSlider(_fm43);
   fm44 = normalizeFMSlider(_fm44);
+  
+  gain = db2gain(normalizeVolSlider(_vol));
+  sus = normalizeVolSlider(_sus);
 );
 
 @slider
@@ -114,8 +144,8 @@ while (midirecv(offset, msg1, note, vel)) (
     ptr[5] = note_repeat ? last_phase_4 : 0;
 
     env = envelope + note * 18;
-    env_adsr(env, 1, 1, 0, 500, 0, 0, 0);
-    env_a(env, vel / 127);
+    env_adsr(env, _att, _dec, sus, _rel, _att_t / 100, _dec_t / 100, _rel_t / 100);
+    env_a(env, min(vel / 127 + (1 - _vel / 100), 1););
   );
 
   // Note off
@@ -135,10 +165,6 @@ while (midirecv(offset, msg1, note, vel)) (
 );
 
 @sample
-
-// TODO - osc envelope
-//      - osc semi and fine
-//      - draw fm matrix
 
 remove_notes.array_clear();
 ptr = poly.array_first();
@@ -189,8 +215,8 @@ while(ptr >= 0) ( // for each note/voice
   ptr[8] = s3;
   ptr[9] = s4;
 
-  spl0 += s1 * 0.25 * envbuf[];
-  spl1 += s1 * 0.25 * envbuf[];
+  spl0 += s1 * gain * envbuf[];
+  spl1 += s1 * gain * envbuf[];
 
   // mark note for deletion
   env_state == 0 ? (
@@ -209,43 +235,50 @@ while(ptr >= 0) (
   ptr = remove_notes.array_next(ptr);
 );
 
-@gfx 520 250
+@gfx 760 250
 
 gfx_clear = COLOR_BG;
 mouse.update_mouse_state();
 
-function draw_number(x, y, w, h, nslider) 
-local(val)
-(
-  val = slider(nslider);
-  set_color(0xFFFFFF);
-  gfx_a = 0.5;
-  gfx_x = x;
-  gfx_y = y;
-  gfx_rect(x,y,w,h,0);
-  gfx_drawstr(sprintf(#, "%03d", val), 1+4, x+w, y+h);
-  gfx_a = 1;
-  val ? (
-    gfx_x = x;
-    gfx_y = y;
-    gfx_drawstr(sprintf(#, "%3d", val), 1+4, x+w, y+h);
-  );
+draw_matrix(440, 30, 300, 200);
+
+draw_button(20, 20, 50, "Glb", gfx_panel == 0);
+draw_button(70, 20, 50, "OP 1", gfx_panel == 1);
+draw_button(120, 20, 50, "OP 2", gfx_panel == 2);
+draw_button(170, 20, 50, "OP 3", gfx_panel == 3);
+draw_button(220, 20, 50, "OP 4", gfx_panel == 4);
+draw_button(270, 20, 50, "Flt", gfx_panel == 5);
+
+mouse.left_click && mouse_in_rect(20,20-2,50,10+4) ? gfx_panel = 0;
+mouse.left_click && mouse_in_rect(70,20-2,50,10+4) ? gfx_panel = 1;
+mouse.left_click && mouse_in_rect(120,20-2,50,10+4) ? gfx_panel = 2;
+mouse.left_click && mouse_in_rect(170,20-2,50,10+4) ? gfx_panel = 3;
+mouse.left_click && mouse_in_rect(220,20-2,50,10+4) ? gfx_panel = 4;
+mouse.left_click && mouse_in_rect(270,20-2,50,10+4) ? gfx_panel = 5;
+
+// GLOBAL
+gfx_panel == 0 ? (
+  draw_knob(20,50, 1, "Vol", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(1)), 0); 
+  draw_knob(20,150, 2, "Vel", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(2)), 0); 
+  draw_knob(80,150, 3, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(3)), 0); 
+  draw_knob(140,150, 4, "Dec", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(4)), 0); 
+  draw_knob(200,150, 5, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(5)), 0); 
+  draw_knob(260,150, 6, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(6)), 0); 
+  set_color(0x666666);
+  gfx_x = 20; gfx_y = 130;
+  gfx_drawstr("ENVELOPE");
+  gfx_x = 320;
+  gfx_drawstr("CURVE");
+  gfx_x = 320; gfx_y = 155;
+  gfx_drawstr("Att");
+  gfx_x = 320; gfx_y = 175;
+  gfx_drawstr("Dec");
+  gfx_x = 320; gfx_y = 195;
+  gfx_drawstr("Rel");
+  draw_number(350, 155, 40, 10, 7, 0, -100, 100);
+  draw_number(350, 175, 40, 10, 8, 0, -100, 100);
+  draw_number(350, 195, 40, 10, 9, 0, -100, 100);
 );
-
-function draw_matrix(x, y, w, h, nslider)
-local (row, col)
-(
-  loop(row=0; 4,
-    loop(col=0; 4,
-      draw_number(x + col*w/4, y+row*h/4, w/4, h/4, nslider + col + row*4);
-      col += 1;
-    );
-    row += 1;
-  );
-);
-
-draw_matrix(100, 20, 210, 210, 240);
-
 
 function on_knob_move (nslider, slider_min, slider_max, slider_is_log, factor) (
   factor *= mouse.control ? 0.05 : 1;
