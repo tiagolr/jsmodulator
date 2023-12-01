@@ -181,16 +181,14 @@ function wave_sync(phase)
   instance(t)
 (
   t = phase;
-  t > 1 ? t -= 1 : t < 0 ? t += 1;
-  // t >= 0 ? t -= t|0 : t += 1 - (t|0);
+  t >= 0 ? t -= t|0 : t += 1 - (t|0);
 );
 
 function wave_inc()
   instance(t, dt)
 (
   t += dt;
-  //t -= t|0;
-  t > 1 ? t -= 1;
+  t -= t|0;
 );
 
 function wave_getdc()
