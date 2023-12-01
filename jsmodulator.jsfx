@@ -1,27 +1,39 @@
 desc:JSModulator
 tags: synth, instrument
 
-slider1:_vol=100<0, 100, 0.1>-Master Volume
+slider1:_vol=80<0, 100, 0.1>-Master Volume
 slider2:_vel=100<0, 100, 0.1>-Velocity
 slider3:_att=1<1, 5000, 1:log>-Attack
 slider4:_dec=1<1, 5000, 1:log>-Decay
 slider5:_sus=100<0, 100, 0.1>-Sustain
 slider6:_rel=500<0, 5000, 1:log>-Release
-slider7:_att_t=0<-100,100,1>Attack curve
-slider8:_dec_t=0<-100,100,1>Decay curve
-slider9:_rel_t=0<-100,100,1>Release curve
+slider7:_att_t=0<-100,100,1>-Attack Curve
+slider8:_dec_t=0<-100,100,1>-Decay Curve
+slider9:_rel_t=0<-100,100,1>-Release Curve
 
-slider20:_o1_vol=80<0,100,1>-Osc1 Vol
+slider20:_o1_vol=100<0,100,1>-Osc1 Vol
 slider21:_o1_pan=0<-100,100,0.01>-Osc1 Pan
+slider22:_o1_semi=0<-48, 48, 1>-Osc1 Semi
+slider23:_o1_fine=0<-99, 99, 1>-Osc1 Fine
+slider24:_o1_phase=0<0,100,1>-Osc1 Phase
 
 slider40:_o2_vol=0<0,100,1>-Osc2 Vol
 slider41:_o2_pan=0<-100,100,0.01>-Osc2 Pan
+slider42:_o2_semi=0<-48, 48, 1>-Osc2 Semi
+slider43:_o2_fine=0<-99, 99, 1>-Osc2 Fine
+slider44:_o2_phase=0<0,100,1>-Osc2 Phase
 
 slider60:_o3_vol=0<0,100,1>-Osc3 Vol
 slider61:_o3_pan=0<-100,100,0.01>-Osc3 Pan
+slider62:_o3_semi=0<-48, 48, 1>-Osc3 Semi
+slider63:_o3_fine=0<-99, 99, 1>-Osc3 Fine
+slider64:_o3_phase=0<0,100,1>-Osc3 Phase
 
 slider80:_o4_vol=0<0,100,1>-Osc4 Vol
 slider81:_o4_pan=0<-100,100,0.01>-Osc4 Pan
+slider82:_o4_semi=0<-48, 48, 1>-Osc4 Semi
+slider83:_o4_fine=0<-99, 99, 1>-Osc4 Fine
+slider84:_o4_phase=0<0,100,1>-Osc4 Phase
 
 slider240:_fm11=0<0,100,.1>-Fm11
 slider241:_fm12=0<0,100,.1>-Fm12
@@ -51,6 +63,8 @@ import mod.envlib.jsfx-inc
 import mod.mouselib.jsfx-inc
 import mod.gfxlib.jsfx-inc
 
+options: gfx_hz=60
+
 @init
 
 poly.array_init(1000, 127, 10); // [note, freq, ph1, ph2, ph3, ph4, signal1, signal2, signal3, signal4]
@@ -60,7 +74,7 @@ envelope = 10000; // 18 * 127 - master envelope per key
 gfx_panel = 0; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
 
 function db2gain (db) local (val) (
-  val = 10^(db / 20); 
+  val = 10^(db / 20);
   val <= 0.001 ? 0 : val;
 );
 function round(in) (floor(in + 0.5 * sign(in)););
@@ -70,22 +84,35 @@ function freq2note(f) ( round(12*(log(f/440)/log(2))+69); );
 function normalizeFMSlider(val) ( 4 * (val/100) ^ 2; );
 function normalizeVolSlider(val) ( val * 60 / 100 - 60 );
 
+function get_wavename(wavenum) (
+  wavenum == 0 ? "Sine"
+  : wavenum == 1 ? "Triangle"
+  : wavenum == 2 ? "Saw"
+  : "Square"
+);
+
+function load_wave(osc*, wavenum) (
+  wavename = wavenum == 0 ? "Sine 1.wav"
+           : wavenum == 1 ? "Triangle.wav"
+           : wavenum == 2 ? "Saw 1.wav"
+           : "Square 1.wav";
+  
+  osc.wavenum = wavenum;
+  osc.open_file(sprintf(#, "tilr_JSOperative/%s", wavename), osc.four);
+  osc.wave_init(osc.buf, osc.len);
+);
+
 osc1.buf = 100000;
-osc1.open_file("tilr_JSOperative/Sine 1.wav", four1);
-osc1.wave_init(osc1.buf, osc1.len);
+load_wave(osc1, 0);
 
 osc2.buf = 200000;
-osc2.open_file("tilr_JSOperative/Sine 1.wav", four2);
-osc2.wave_init(osc2.buf, osc2.len);
+load_wave(osc2, 0);
 
 osc3.buf = 300000;
-osc3.open_file("tilr_JSOperative/Sine 1.wav", four3);
-osc3.wave_init(osc3.buf, osc3.len);
+load_wave(osc3, 0);
 
 osc4.buf = 400000;
-osc4.open_file("tilr_JSOperative/Sine 1.wav", four4);
-osc4.wave_init(osc4.buf, osc4.len);
-
+load_wave(osc3, 0);
 
 function on_slider() (
   fm11 = normalizeFMSlider(_fm11);
@@ -107,9 +134,29 @@ function on_slider() (
   fm42 = normalizeFMSlider(_fm42);
   fm43 = normalizeFMSlider(_fm43);
   fm44 = normalizeFMSlider(_fm44);
-  
+
   gain = db2gain(normalizeVolSlider(_vol));
   sus = normalizeVolSlider(_sus);
+
+  o1_gain = db2gain(normalizeVolSlider(_o1_vol));
+  o1_pan = _o1_pan / 100;
+  o1_semi = pow(2, (_o1_semi|0) / 12);
+  o1_fine = pow(2, _o1_fine / 1200);
+
+  o2_gain = db2gain(normalizeVolSlider(_o2_vol));
+  o2_pan = _o2_pan / 100;
+  o2_semi = pow(2, (_o2_semi|0) / 12);
+  o2_fine = pow(2, _o2_fine / 1200);
+
+  o3_gain = db2gain(normalizeVolSlider(_o3_vol));
+  o3_pan = _o3_pan / 100;
+  o3_semi = pow(2, (_o3_semi|0) / 12);
+  o3_fine = pow(2, _o3_fine / 1200);
+
+  o4_gain = db2gain(normalizeVolSlider(_o4_vol));
+  o4_pan = _o4_pan / 100;
+  o4_semi = pow(2, (_o4_semi|0) / 12);
+  o4_fine = pow(2, _o4_fine / 1200);
 );
 
 @slider
@@ -138,10 +185,10 @@ while (midirecv(offset, msg1, note, vel)) (
     ptr = poly.array_add();
     ptr[0] = note;
     ptr[1] = note2freq(note) / srate;
-    ptr[2] = note_repeat ? last_phase_1 : 0;
-    ptr[3] = note_repeat ? last_phase_2 : 0;
-    ptr[4] = note_repeat ? last_phase_3 : 0;
-    ptr[5] = note_repeat ? last_phase_4 : 0;
+    ptr[2] = note_repeat ? last_phase_1 : _o1_phase / 100;
+    ptr[3] = note_repeat ? last_phase_2 : _o2_phase / 100;
+    ptr[4] = note_repeat ? last_phase_3 : _o3_phase / 100;
+    ptr[5] = note_repeat ? last_phase_4 : _o4_phase / 100;
 
     env = envelope + note * 18;
     env_adsr(env, _att, _dec, sus, _rel, _att_t / 100, _dec_t / 100, _rel_t / 100);
@@ -183,25 +230,25 @@ while(ptr >= 0) ( // for each note/voice
   s4 = ptr[9];
 
   osc1.wave_sync(ph1 + s1 * fm11 + s2 * fm21 + s3 * fm31 + s4 * fm41);
-  osc1.wave_setdt(freq);
+  osc1.wave_setdt(freq * o1_fine * o1_semi);
   s1 = osc1.wave_spline3();
   ph1 += osc1.dt;
   ph1 > 1 ? ph1 -= 1;
 
   osc2.wave_sync(ph2 + s1 * fm12 + s2 * fm22 + s3 * fm32 + s4 * fm42);
-  osc2.wave_setdt(freq);
+  osc2.wave_setdt(freq * o2_fine * o2_semi);
   s2 = osc2.wave_spline3();
   ph2 += osc2.dt;
   ph2 > 1 ? ph2 -= 1;
 
   osc3.wave_sync(ph3 + s1 * fm13 + s2 * fm23 + s3 * fm33 + s4 * fm43);
-  osc3.wave_setdt(freq);
+  osc3.wave_setdt(freq * o3_fine * o3_semi);
   s3 = osc3.wave_spline3();
   ph3 += osc3.dt;
   ph3 > 1 ? ph3 -= 1;
 
   osc4.wave_sync(ph4 + s1 * fm14 + s2 * fm24 + s3 * fm34 + s4 * fm44);
-  osc4.wave_setdt(freq);
+  osc4.wave_setdt(freq * o4_fine * o4_semi);
   s4 = osc4.wave_spline3();
   ph4 += osc4.dt;
   ph4 > 1 ? ph4 -= 1;
@@ -215,8 +262,10 @@ while(ptr >= 0) ( // for each note/voice
   ptr[8] = s3;
   ptr[9] = s4;
 
-  spl0 += s1 * gain * envbuf[];
-  spl1 += s1 * gain * envbuf[];
+  sl = s1 * o1_gain * (1 - o1_pan) + s2 * o2_gain * (1 - o2_pan) + s3 * o3_gain * (1 - o3_pan) + s4 * o4_gain * (1 - o4_pan);
+  sr = s1 * o1_gain * (1 + o1_pan) + s2 * o2_gain * (1 + o2_pan) + s3 * o3_gain * (1 + o3_pan) + s4 * o4_gain * (1 + o4_pan);
+  spl0 += sl * gain * envbuf[];
+  spl1 += sr * gain * envbuf[];
 
   // mark note for deletion
   env_state == 0 ? (
@@ -258,12 +307,12 @@ mouse.left_click && mouse_in_rect(270,20-2,50,10+4) ? gfx_panel = 5;
 
 // GLOBAL
 gfx_panel == 0 ? (
-  draw_knob(20,50, 1, "Vol", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(1)), 0); 
-  draw_knob(20,150, 2, "Vel", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(2)), 0); 
-  draw_knob(80,150, 3, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(3)), 0); 
-  draw_knob(140,150, 4, "Dec", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(4)), 0); 
-  draw_knob(200,150, 5, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(5)), 0); 
-  draw_knob(260,150, 6, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(6)), 0); 
+  draw_knob(20,50, 1, "Vol", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(1)), 0);
+  draw_knob(20,150, 2, "Vel", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(2)), 0);
+  draw_knob(80,150, 3, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(3)), 0);
+  draw_knob(140,150, 4, "Dec", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(4)), 0);
+  draw_knob(200,150, 5, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(5)), 0);
+  draw_knob(260,150, 6, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(6)), 0);
   set_color(0x666666);
   gfx_x = 20; gfx_y = 130;
   gfx_drawstr("ENVELOPE");
@@ -280,8 +329,36 @@ gfx_panel == 0 ? (
   draw_number(350, 195, 40, 10, 9, 0, -100, 100);
 );
 
+// OPERATORS
+gfx_panel > 0 && gfx_panel < 5 ? (
+  wavebuf = gfx_panel == 1 ? osc1.buf : gfx_panel == 2 ? osc2.buf : gfx_panel == 3 ? osc3.buf : osc4.buf;
+  wavelen = gfx_panel == 1 ? osc1.len : gfx_panel == 2 ? osc2.len : gfx_panel == 3 ? osc3.len : osc4.len;
+  wavename = gfx_panel == 1 ? get_wavename(osc1.wavenum)
+           : gfx_panel == 2 ? get_wavename(osc2.wavenum)
+           : gfx_panel == 3 ? get_wavename(osc3.wavenum)
+           : get_wavename(osc4.wavenum);
+  
+  draw_wave(20, 45, 80, 40, wavebuf, wavelen); 
+  draw_button(20, 95, 80, wavename, 0);
+  mouse.left_click && mouse_in_rect(20, 95-2, 80, 105+4) ? (
+    gfx_x = 20; gfx_y = 105;
+    choice = gfx_showmenu("Sine|Triangle|Saw|Square");
+    choice > 0 ? (
+      gfx_panel == 1 ? load_wave(osc1, choice - 1); 
+      gfx_panel == 2 ? load_wave(osc2, choice - 1); 
+      gfx_panel == 3 ? load_wave(osc3, choice - 1); 
+      gfx_panel == 4 ? load_wave(osc4, choice - 1);
+    );
+  );
+  
+  
+  draw_knob(120,50, 22+(gfx_panel-1)*20, "Semi", 0, -48, 48, 0, 1, sprintf(#, "%d", slider(22+(gfx_panel-1)*20)), 0);
+  draw_knob(180,50, 23+(gfx_panel-1)*20, "Fine", 0, -99, 99, 0, 1, sprintf(#, "%d", slider(23+(gfx_panel-1)*20)), 0);
+  draw_knob(240,50, 24+(gfx_panel-1)*20, "Phase", 0, 0, 100, 0, 0, sprintf(#, "%d", slider(24+(gfx_panel-1)*20)), 0);
+);
+
 function on_knob_move (nslider, slider_min, slider_max, slider_is_log, factor) (
-  factor *= mouse.control ? 0.05 : 1;
+  factor *= mouse.control ? 0.05 : 0.5;
   slider_is_log ? (
     slider(nslider) = slider(nslider) * pow(100, -factor * 0.01);
   ) : (
