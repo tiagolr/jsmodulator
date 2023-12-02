@@ -67,6 +67,18 @@ slider90:_o4_att_t=0<-100,100,1>-Osc4 Attack Curve
 slider91:_o4_dec_t=0<-100,100,1>-Osc4 Decay Curve
 slider92:_o4_rel_t=0<-100,100,1>-Osc4 Release Curve
 
+slider100:_flt_type=0<0,3,1{Off,LP,BP,HP}>Filter type
+slider101:_flt_freq=10000<20, 22000, 1:log>Filter freq
+slider102:_flt_q=0.70<0.01, 40, 0.01:log>Filter Q
+slider103:_flt_att=1<1, 5000, 1:log>Filter Attack
+slider104:_flt_dec=500<1, 5000, 1:log>Filter Decay
+slider105:_flt_sus=0<0, 100, 0.1>Filter Sustain
+slider106:_flt_rel=500<1, 5000, 1:log>Filter Release
+slider107:_flt_att_t=0<-100,100,1>-Filter Attack Curve
+slider108:_flt_dec_t=0<-100,100,1>-Filter Decay Curve
+slider109:_flt_rel_t=0<-100,100,1>-Filter Release Curve
+slider110:_flt_adsr_amt=0<-100, 100, 0.01>Filter ASDR amt.
+
 slider240:_fm11=0<0,100,.1>-Fm11
 slider241:_fm12=0<0,100,.1>-Fm12
 slider242:_fm13=0<0,100,.1>-Fm13
@@ -94,6 +106,7 @@ import mod.wavetable.jsfx-inc
 import mod.envlib.jsfx-inc
 import mod.mouselib.jsfx-inc
 import mod.gfxlib.jsfx-inc
+import mod.zdf_filter.jsfx-inc
 
 options: gfx_hz=60
 
@@ -106,6 +119,10 @@ envelope_o1 = 15000; // 18 * 127
 envelope_o2 = 20000; // 18 * 127
 envelope_o3 = 25000; // 18 * 127
 envelope_o4 = 30000; // 18 * 127
+filter_arr_l = 35000; // 11 * 127 buffer for filters one per key left channel
+filter_arr_r = 40000; // 11 * 127 buffer for filters one per key right channel
+envelope_flt = 45000; // 18 * 127 buffer for filter adsr
+
 gfx_panel = 0; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
 gfx_panel_osc = 0; // 0 - Envelope - 1 harm, 2 - phase
 
@@ -197,6 +214,8 @@ function on_slider() (
   o4_semi = pow(2, (_o4_semi|0) / 12);
   o4_fine = pow(2, _o4_fine / 1200);
   o4_sus = normalizeVolSlider(_o4_sus);
+
+  flt_sus = normalizeVolSlider(_flt_sus);
 );
 
 function on_note(note) local (ptr, env) (
@@ -233,6 +252,65 @@ function on_note(note) local (ptr, env) (
   memset(env, 0, 18);
   env_adsr(env, _o4_att, _o4_dec, o4_sus, _o4_rel, _o4_att_t/100, _o4_dec_t/100, _o4_rel_t/100);
   env_a(env, min(vel / 127 + (1 - _o4_vel / 100), 1));
+
+  env = envelope_flt + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _flt_att, _flt_dec, flt_sus, _flt_rel, _flt_att_t/100, _flt_dec_t/100, _flt_rel_t/100);
+  env_a(env, 1);
+);
+
+// copy filter coeficients from buffer1 to buffer2
+function filter_copy_coefs(buf1, buf2) (
+  buf2[2] = buf1[2];
+  buf2[3] = buf1[3];
+  buf2[4] = buf1[4];
+);
+
+// wraps filter function using buffers
+function filter_setf(buf, freq, q) (
+  filter.zdf_setf(freq, q);
+  buf[2] = filter.g;
+  buf[3] = filter.r2;
+  buf[4] = filter.h;
+);
+
+// wraps filter function using buffers
+function filter_lp(buf, sample) local(lp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  lp = filter.zdf_svf_lp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  lp;
+);
+
+// wraps filter function using buffers
+function filter_bp(buf, sample) local(bp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  bp = filter.zdf_svf_bp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  bp;
+);
+
+// wraps filter function using buffers
+function filter_hp(buf, sample) local(hp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  hp = filter.zdf_svf_hp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  hp;
 );
 
 @slider
@@ -268,6 +346,7 @@ while (midirecv(offset, msg1, note, vel)) (
       env_r(envelope_o2 + note * 18);
       env_r(envelope_o3 + note * 18);
       env_r(envelope_o4 + note * 18);
+      env_r(envelope_flt + note * 18);
     );
   );
 
@@ -342,6 +421,29 @@ while(ptr >= 0) ( // for each note/voice
 
   sl = s1 * o1_gain * (1 - o1_pan) + s2 * o2_gain * (1 - o2_pan) + s3 * o3_gain * (1 - o3_pan) + s4 * o4_gain * (1 - o4_pan);
   sr = s1 * o1_gain * (1 + o1_pan) + s2 * o2_gain * (1 + o2_pan) + s3 * o3_gain * (1 + o3_pan) + s4 * o4_gain * (1 + o4_pan);
+
+  _flt_type != 0 ? (
+    filterbuf = envelope_flt + ptr[0] * 18; // envelope buffer
+    env_process(filterbuf);
+    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
+    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
+    adsr_mult = pow(22000/_flt_freq, filterbuf[0] * _flt_adsr_amt / 100);
+
+    filter_setf(filterbuf_l, _flt_freq * adsr_mult, _flt_q);
+    filter_copy_coefs(filterbuf_l, filterbuf_r);
+
+    _flt_type == 1 ? (
+      sl = filter_lp(filterbuf_l, sl);
+      sr = filter_lp(filterbuf_r, sr);
+    ) : _flt_type == 2 ? (
+      sl = filter_bp(filterbuf_l, sl);
+      sr = filter_bp(filterbuf_r, sr);
+    ) : (
+      sl = filter_hp(filterbuf_l, sl);
+      sr = filter_hp(filterbuf_r, sr);
+    );
+  );
+
   spl0 += sl * gain * envbuf[];
   spl1 += sr * gain * envbuf[];
 
