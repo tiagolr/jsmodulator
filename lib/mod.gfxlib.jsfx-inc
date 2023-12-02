@@ -247,7 +247,7 @@ local (row, col)
   );
 );
 
-function draw_harmonics(x, y, w, h, buf, nharm)
+function draw_harmonics(x, y, w, h, buf, nharm, phase_mode)
 local (harm_w, amp, i, mouse_active, hx, ph, yamp, phase, real, img, yphase)
 (
   set_color(0x666666);

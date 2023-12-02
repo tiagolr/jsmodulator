@@ -107,6 +107,7 @@ envelope_o2 = 20000; // 18 * 127
 envelope_o3 = 25000; // 18 * 127
 envelope_o4 = 30000; // 18 * 127
 gfx_panel = 0; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
+gfx_panel_osc = 0; // 0 - Envelope - 1 harm, 2 - phase
 
 function db2gain (db) local (val) (
   val = 10^(db / 20);
@@ -432,7 +433,7 @@ gfx_panel > 0 && gfx_panel < 5 ? (
 
   draw_wave(20, 45, 80, 40, wavebuf, wavelen);
   draw_button(20, 95, 80, wavename, 0);
-  mouse.left_click && mouse_in_rect(20, 95-2, 80, 105+4) ? (
+  mouse.left_click && mouse_in_rect(20, 95-2, 80, 10+4) ? (
     gfx_x = 20; gfx_y = 105;
     choice = gfx_showmenu("Sine|Triangle|Saw|Square");
     choice > 0 ? (
@@ -446,6 +447,52 @@ gfx_panel > 0 && gfx_panel < 5 ? (
   draw_knob(120,50, 22+(gfx_panel-1)*20, "Semi", 0, -48, 48, 0, 1, sprintf(#, "%d", slider(22+(gfx_panel-1)*20)), 0);
   draw_knob(180,50, 23+(gfx_panel-1)*20, "Fine", 0, -99, 99, 0, 1, sprintf(#, "%d", slider(23+(gfx_panel-1)*20)), 0);
   draw_knob(240,50, 24+(gfx_panel-1)*20, "Phase", 0, 0, 100, 0, 0, sprintf(#, "%d", slider(24+(gfx_panel-1)*20)), 0);
+
+  draw_button(20, 130, 50, "Env", gfx_panel_osc == 0);
+  mouse.left_click && mouse_in_rect(20,130-2, 50, 10+4) ? gfx_panel_osc = 0;
+  draw_button(70, 130, 50, "Harm", gfx_panel_osc == 1);
+  mouse.left_click && mouse_in_rect(70,130-2, 50, 10+4) ? gfx_panel_osc = 1;
+  draw_button(120, 130, 50, "Phase", gfx_panel_osc == 2);
+  mouse.left_click && mouse_in_rect(120,130-2, 50, 10+4) ? gfx_panel_osc = 2;
+
+  gfx_panel_osc == 0 ? (
+    draw_knob(20,150, 25+(gfx_panel-1)*20, "Vel", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(25+(gfx_panel-1)*20)), 0);
+    draw_knob(80,150, 26+(gfx_panel-1)*20, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(26+(gfx_panel-1)*20)), 0);
+    draw_knob(140,150, 27+(gfx_panel-1)*20, "Dec", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(27+(gfx_panel-1)*20)), 0);
+    draw_knob(200,150, 28+(gfx_panel-1)*20, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%d", slider(28+(gfx_panel-1)*20)), 0);
+    draw_knob(260,150, 29+(gfx_panel-1)*20, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(29+(gfx_panel-1)*20)), 0);
+    set_color(0x666666);
+    //gfx_x = 20; gfx_y = 130;
+    //gfx_drawstr("ENVELOPE");
+    gfx_x = 320; gfx_y = 130;
+    gfx_drawstr("CURVE");
+    gfx_x = 320; gfx_y = 155;
+    gfx_drawstr("Att");
+    gfx_x = 320; gfx_y = 175;
+    gfx_drawstr("Dec");
+    gfx_x = 320; gfx_y = 195;
+    gfx_drawstr("Rel");
+    draw_number(350, 155, 40, 10, 30+(gfx_panel-1)*20, 0, -100, 100);
+    draw_number(350, 175, 40, 10, 31+(gfx_panel-1)*20, 0, -100, 100);
+    draw_number(350, 195, 40, 10, 32+(gfx_panel-1)*20, 0, -100, 100);
+  );
+
+  gfx_panel_osc > 0 ? (
+    mouse.left_click && mouse_in_rect(20, 150, 320, 60) ? (
+      edit_mode = 1;
+    );
+    edit_mode && !mouse.left ? (
+      edit_mode = 0;
+      gfx_panel == 1 ? resynthesize(osc1.buf, osc1.len, osc1.four)
+      : gfx_panel == 2 ? resynthesize(osc2.buf, osc2.len, osc2.four)
+      : gfx_panel == 3 ? resynthesize(osc3.buf, osc3.len, osc3.four)
+      : resynthesize(osc4.buf, osc4.len, osc4.four);
+    );
+    gfx_panel == 1 ? draw_harmonics(20, 150, 320, 60, osc1.four.coef+2 + harm_index*32*2, 32, gfx_panel_osc == 2)
+    : gfx_panel == 2 ? draw_harmonics(20, 150, 320, 60, osc2.four.coef+2 + harm_index*32*2, 32, gfx_panel_osc == 2)
+    : gfx_panel == 3 ? draw_harmonics(20, 150, 320, 60, osc3.four.coef+2 + harm_index*32*2, 32, gfx_panel_osc == 2)
+    : draw_harmonics(20, 150, 320, 60, osc4.four.coef+2 + harm_index*32*2, 32, gfx_panel_osc == 2)
+  );
 );
 
 function on_knob_move (nslider, slider_min, slider_max, slider_is_log, factor) (
