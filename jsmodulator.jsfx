@@ -99,7 +99,7 @@ options: gfx_hz=60
 
 @init
 
-poly.array_init(1000, 127, 10); // [note, freq, ph1, ph2, ph3, ph4, signal1, signal2, signal3, signal4]
+poly.array_init(1000, 127, 11); // [note, freq, ph1, ph2, ph3, ph4, signal1, signal2, signal3, signal4, note_repeat_flag]
 remove_notes.array_init(5000, 127, 1); // remove notes array
 envelope = 10000; // 18 * 127 - master envelope per key
 envelope_o1 = 15000; // 18 * 127
@@ -131,7 +131,7 @@ function load_wave(osc*, wavenum) (
            : wavenum == 1 ? "Triangle.wav"
            : wavenum == 2 ? "Saw 1.wav"
            : "Square 1.wav";
-  
+
   osc.wavenum = wavenum;
   osc.open_file(sprintf(#, "tilr_JSOperative/%s", wavename), osc.four);
   osc.wave_init(osc.buf, osc.len);
@@ -198,6 +198,42 @@ function on_slider() (
   o4_sus = normalizeVolSlider(_o4_sus);
 );
 
+function on_note(note) local (ptr, env) (
+  ptr = poly.array_add();
+  ptr[0] = note;
+  ptr[1] = note2freq(note) / srate;
+  ptr[2] = _o1_phase / 100;
+  ptr[3] = _o2_phase / 100;
+  ptr[4] = _o3_phase / 100;
+  ptr[5] = _o4_phase / 100;
+  ptr[10] = 0;
+
+  env = envelope + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _att, _dec, sus, _rel, _att_t / 100, _dec_t / 100, _rel_t / 100);
+  env_a(env, min(vel / 127 + (1 - _vel / 100), 1));
+
+  env = envelope_o1 + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _o1_att, _o1_dec, o1_sus, _o1_rel, _o1_att_t/100, _o1_dec_t/100, _o1_rel_t/100);
+  env_a(env, min(vel / 127 + (1 - _o1_vel / 100), 1));
+
+  env = envelope_o2 + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _o2_att, _o2_dec, o2_sus, _o2_rel, _o2_att_t/100, _o2_dec_t/100, _o2_rel_t/100);
+  env_a(env, min(vel / 127 + (1 - _o2_vel / 100), 1));
+
+  env = envelope_o3 + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _o3_att, _o3_dec, o3_sus, _o3_rel, _o3_att_t/100, _o3_dec_t/100, _o3_rel_t/100);
+  env_a(env, min(vel / 127 + (1 - _o3_vel / 100), 1));
+
+  env = envelope_o4 + note * 18;
+  memset(env, 0, 18);
+  env_adsr(env, _o4_att, _o4_dec, o4_sus, _o4_rel, _o4_att_t/100, _o4_dec_t/100, _o4_rel_t/100);
+  env_a(env, min(vel / 127 + (1 - _o4_vel / 100), 1));
+);
+
 @slider
 
 on_slider();
@@ -209,50 +245,17 @@ while (midirecv(offset, msg1, note, vel)) (
 
   // Note on
   event == 0x90 && vel ? (
-    // remove note if it is already playing
-    note_repeat = 0;
+    // note repeat
+    // because this synth uses only one note per key
+    // key repeat triggers a fast release of the current note
+    // and retriggers the note once it completes
     ptr = poly.array_find(note);
     ptr >= 0 ? (
-      note_repeat = 1;
-      last_phase_1 = ptr[2];
-      last_phase_2 = ptr[3];
-      last_phase_3 = ptr[4];
-      last_phase_4 = ptr[5];
-      poly.array_remove(ptr);
+      env_r(envelope + note * 18);
+      ptr[10] = 1; // note repeat flag
+    ) : (
+      on_note(note);
     );
-
-    ptr = poly.array_add();
-    ptr[0] = note;
-    ptr[1] = note2freq(note) / srate;
-    ptr[2] = note_repeat ? last_phase_1 : _o1_phase / 100;
-    ptr[3] = note_repeat ? last_phase_2 : _o2_phase / 100;
-    ptr[4] = note_repeat ? last_phase_3 : _o3_phase / 100;
-    ptr[5] = note_repeat ? last_phase_4 : _o4_phase / 100;
-
-    env = envelope + note * 18;
-    //memset(env, 0, 18);
-    env_adsr(env, _att, _dec, sus, _rel, _att_t / 100, _dec_t / 100, _rel_t / 100);
-    env_a(env, min(vel / 127 + (1 - _vel / 100), 1));
-    
-    env = envelope_o1 + note * 18;
-    //memset(env, 0, 18);
-    env_adsr(env, _o1_att, _o1_dec, o1_sus, _o1_rel, _o1_att_t/100, _o1_dec_t/100, _o1_rel_t/100);
-    env_a(env, min(vel / 127 + (1 - _o1_vel / 100), 1));
-    
-    env = envelope_o2 + note * 18;
-    //memset(env, 0, 18);
-    env_adsr(env, _o2_att, _o2_dec, o2_sus, _o2_rel, _o2_att_t/100, _o2_dec_t/100, _o2_rel_t/100);
-    env_a(env, min(vel / 127 + (1 - _o2_vel / 100), 1));
-    
-    env = envelope_o3 + note * 18;
-    //memset(env, 0, 18);
-    env_adsr(env, _o3_att, _o3_dec, o3_sus, _o3_rel, _o3_att_t/100, _o3_dec_t/100, _o3_rel_t/100);
-    env_a(env, min(vel / 127 + (1 - _o3_vel / 100), 1));
-    
-    env = envelope_o4 + note * 18;
-    //memset(env, 0, 18);
-    env_adsr(env, _o4_att, _o4_dec, o4_sus, _o4_rel, _o4_att_t/100, _o4_dec_t/100, _o4_rel_t/100);
-    env_a(env, min(vel / 127 + (1 - _o4_vel / 100), 1));
   );
 
   // Note off
@@ -282,12 +285,12 @@ ptr = poly.array_first();
 while(ptr >= 0) ( // for each note/voice
   envbuf = envelope + ptr[0] * 18;
   env_state = env_process(envbuf);
-  
+
   env_o1 = envelope_o1 + ptr[0] * 18;
   env_o2 = envelope_o2 + ptr[0] * 18;
   env_o3 = envelope_o3 + ptr[0] * 18;
   env_o4 = envelope_o4 + ptr[0] * 18;
-  
+
   env_process(env_o1);
   env_process(env_o2);
   env_process(env_o3);
@@ -341,6 +344,14 @@ while(ptr >= 0) ( // for each note/voice
   spl0 += sl * gain * envbuf[];
   spl1 += sr * gain * envbuf[];
 
+  // Note repeat, trigger fast release
+  ptr[10] ? (
+    envbuf[0] -= 0.01;
+    envbuf[0] < 0 ? (
+      envbuf[0] = 0;
+    )
+  );
+
   // mark note for deletion
   env_state == 0 ? (
     p = remove_notes.array_add();
@@ -354,7 +365,14 @@ while(ptr >= 0) ( // for each note/voice
 ptr = remove_notes.array_first();
 while(ptr >= 0) (
   p = poly.array_find(ptr[0]);
-  p >= 0 ? poly.array_remove(p);
+  p >= 0 ? (
+    p[10] ? ( // Note repeat, release has finished, retrigger note
+      poly.array_remove(p);
+      on_note(ptr[0]);
+    ) : (
+      poly.array_remove(p);
+    );
+  );
   ptr = remove_notes.array_next(ptr);
 );
 
@@ -411,21 +429,20 @@ gfx_panel > 0 && gfx_panel < 5 ? (
            : gfx_panel == 2 ? get_wavename(osc2.wavenum)
            : gfx_panel == 3 ? get_wavename(osc3.wavenum)
            : get_wavename(osc4.wavenum);
-  
-  draw_wave(20, 45, 80, 40, wavebuf, wavelen); 
+
+  draw_wave(20, 45, 80, 40, wavebuf, wavelen);
   draw_button(20, 95, 80, wavename, 0);
   mouse.left_click && mouse_in_rect(20, 95-2, 80, 105+4) ? (
     gfx_x = 20; gfx_y = 105;
     choice = gfx_showmenu("Sine|Triangle|Saw|Square");
     choice > 0 ? (
-      gfx_panel == 1 ? load_wave(osc1, choice - 1); 
-      gfx_panel == 2 ? load_wave(osc2, choice - 1); 
-      gfx_panel == 3 ? load_wave(osc3, choice - 1); 
+      gfx_panel == 1 ? load_wave(osc1, choice - 1);
+      gfx_panel == 2 ? load_wave(osc2, choice - 1);
+      gfx_panel == 3 ? load_wave(osc3, choice - 1);
       gfx_panel == 4 ? load_wave(osc4, choice - 1);
     );
   );
-  
-  
+
   draw_knob(120,50, 22+(gfx_panel-1)*20, "Semi", 0, -48, 48, 0, 1, sprintf(#, "%d", slider(22+(gfx_panel-1)*20)), 0);
   draw_knob(180,50, 23+(gfx_panel-1)*20, "Fine", 0, -99, 99, 0, 1, sprintf(#, "%d", slider(23+(gfx_panel-1)*20)), 0);
   draw_knob(240,50, 24+(gfx_panel-1)*20, "Phase", 0, 0, 100, 0, 0, sprintf(#, "%d", slider(24+(gfx_panel-1)*20)), 0);
