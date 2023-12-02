@@ -2,7 +2,7 @@ desc:mod.gfxlib.jsfx-inc
 
 @init
 
-COLOR_ACTIVE = 0x5de4b1;
+COLOR_ACTIVE = 0xe4a05d;
 COLOR_BG = 0x141618;
 
 selknob_nslider = 0;

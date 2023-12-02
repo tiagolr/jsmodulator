@@ -77,7 +77,7 @@ slider106:_flt_rel=500<1, 5000, 1:log>-Filter Release
 slider107:_flt_att_t=0<-100,100,1>-Filter Attack Curve
 slider108:_flt_dec_t=0<-100,100,1>-Filter Decay Curve
 slider109:_flt_rel_t=0<-100,100,1>-Filter Release Curve
-slider110:_flt_adsr_amt=0<-100, 100, 0.01>Filter ASDR amt.
+slider110:_flt_adsr_amt=0<-100, 100, 0.01>-Filter ASDR amt.
 
 slider240:_fm11=0<0,100,.1>-Fm11
 slider241:_fm12=0<0,100,.1>-Fm12
@@ -108,7 +108,17 @@ import mod.mouselib.jsfx-inc
 import mod.gfxlib.jsfx-inc
 import mod.zdf_filter.jsfx-inc
 
-options: gfx_hz=60
+options: gfx_hz=60 no_meter
+
+@serialize
+file_mem(0, osc1.buf, osc1.len + osc1.four.size * 4);
+file_mem(0, osc2.buf, osc2.len + osc2.four.size * 4);
+file_mem(0, osc3.buf, osc3.len + osc3.four.size * 4);
+file_mem(0, osc4.buf, osc4.len + osc4.four.size * 4);
+file_var(0, osc1.wavenum);
+file_var(0, osc2.wavenum);
+file_var(0, osc3.wavenum);
+file_var(0, osc4.wavenum);
 
 @init
 
@@ -123,7 +133,7 @@ filter_arr_l = 35000; // 11 * 127 buffer for filters one per key left channel
 filter_arr_r = 40000; // 11 * 127 buffer for filters one per key right channel
 envelope_flt = 45000; // 18 * 127 buffer for filter adsr
 
-gfx_panel = 0; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
+gfx_panel = 1; // 0 - Global, 1 - Op1, 2 - Op2 .... 5 - Filter
 gfx_panel_osc = 0; // 0 - Envelope - 1 harm, 2 - phase
 
 function db2gain (db) local (val) (
@@ -139,19 +149,31 @@ function normalizeVolSlider(val) ( val * 60 / 100 - 60 );
 
 function get_wavename(wavenum) (
   wavenum == 0 ? "Sine"
-  : wavenum == 1 ? "Triangle"
-  : wavenum == 2 ? "Saw"
-  : "Square"
+  : wavenum == 1 ? "Sine 2"
+  : wavenum == 2 ? "Sine 3"
+  : wavenum == 3 ? "Sine 4"
+  : wavenum == 4 ? "Triangle"
+  : wavenum == 5 ? "Saw"
+  : wavenum == 6 ? "Saw 2"
+  : wavenum == 7 ? "Saw 3"
+  : wavenum == 8 ? "Square"
+  : wavenum == 9 ? "Organ"
+  : wavenum == 10 ? "Organ 2"
+  : wavenum == 11 ? "Organ 3"
+  : wavenum == 12 ? "Organ 4"
+  : wavenum == 13 ? "Complex"
+  : wavenum == 14 ? "Complex 2"
+  : wavenum == 15 ? "Complex 3"
+  : wavenum == 16 ? "Complex 4"
+  : wavenum == 17 ? "Spectral"
+  : wavenum == 18 ? "Stairs"
+  : "";
 );
 
 function load_wave(osc*, wavenum) (
-  wavename = wavenum == 0 ? "Sine 1.wav"
-           : wavenum == 1 ? "Triangle.wav"
-           : wavenum == 2 ? "Saw 1.wav"
-           : "Square 1.wav";
-
+  wavename = get_wavename(wavenum);
   osc.wavenum = wavenum;
-  osc.open_file(sprintf(#, "tilr_JSOperative/%s", wavename), osc.four);
+  osc.open_file(sprintf(#, "tilr_JSModulator/%s.wav", wavename), osc.four);
   osc.wave_init(osc.buf, osc.len);
 );
 
@@ -165,7 +187,7 @@ osc3.buf = 300000;
 load_wave(osc3, 0);
 
 osc4.buf = 400000;
-load_wave(osc3, 0);
+load_wave(osc4, 0);
 
 function on_slider() (
   fm11 = normalizeFMSlider(_fm11);
@@ -479,7 +501,7 @@ while(ptr >= 0) (
   ptr = remove_notes.array_next(ptr);
 );
 
-@gfx 760 250
+@gfx 760 240
 
 gfx_clear = COLOR_BG;
 mouse.update_mouse_state();
@@ -537,7 +559,7 @@ gfx_panel > 0 && gfx_panel < 5 ? (
   draw_button(20, 95, 80, wavename, 0);
   mouse.left_click && mouse_in_rect(20, 95-2, 80, 10+4) ? (
     gfx_x = 20; gfx_y = 105;
-    choice = gfx_showmenu("Sine|Triangle|Saw|Square");
+    choice = gfx_showmenu("Sine|Sine 2|Sine 3|Sine 4|Triangle|Saw|Saw 2|Saw 3|Square|Organ|Organ 2|Organ 3|Organ 4|Complex|Complex 2|Complex 3|Complex 4|Spectral|Stairs");
     choice > 0 ? (
       gfx_panel == 1 ? load_wave(osc1, choice - 1);
       gfx_panel == 2 ? load_wave(osc2, choice - 1);
@@ -610,7 +632,7 @@ gfx_panel == 5 ? (
   );
   draw_knob(120,50, 101, "Freq", 1000, 20, 22000, 1, 0, sprintf(#, "%d Hz", slider(101)), 0);
   draw_knob(180,50, 102, "Q", 0.7, 0.01, 40, 1, 0, sprintf(#, "%.2f", slider(102)), 0);
-  
+
   draw_knob(20,150, 110, "Amt", 0, -100, 100, 0, 1, sprintf(#, "%d", slider(110)), 0);
   draw_knob(80,150, 103, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(103)), 0);
   draw_knob(140,150, 104, "Dec", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(104)), 0);
