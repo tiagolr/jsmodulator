@@ -147,6 +147,20 @@ function freq2note(f) ( round(12*(log(f/440)/log(2))+69); );
 function normalizeFMSlider(val) ( 4 * (val/100) ^ 2; );
 function normalizeVolSlider(val) ( val * 60 / 100 - 60 );
 
+function rc_set(rc)
+  instance(a) (
+    a = 1 / (rc * srate + 1);
+);
+function rc_lp(sample)
+  instance(lp, a) (
+    lp += a * (sample - lp);
+);
+function smooth()
+  instance (lp, smooth) (
+    lp = smooth;
+    smooth = this.rc_lp(this);
+);
+
 function get_wavename(wavenum) (
   wavenum == 0 ? "Sine"
   : wavenum == 1 ? "Sine 2"
@@ -239,6 +253,19 @@ function on_slider() (
 
   flt_sus = normalizeVolSlider(_flt_sus);
 );
+
+// init slider smoothing
+gain.rc_set(0.0033);
+gain.smooth = db2gain(normalizeVolSlider(_vol));
+
+o1_gain.rc_set(0.0033);
+o1_gain.smooth = db2gain(normalizeVolSlider(o1_vol));
+o2_gain.rc_set(0.0033);
+o2_gain.smooth = db2gain(normalizeVolSlider(o2_vol));
+o3_gain.rc_set(0.0033);
+o3_gain.smooth = db2gain(normalizeVolSlider(o3_vol));
+o4_gain.rc_set(0.0033);
+o4_gain.smooth = db2gain(normalizeVolSlider(o4_vol));
 
 function on_note(note) local (ptr, env) (
   ptr = poly.array_add();
@@ -336,6 +363,12 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
+gain.smooth();
+o1_gain.smooth();
+o2_gain.smooth();
+o3_gain.smooth();
+o4_gain.smooth();
+
 remove_notes.array_clear();
 ptr = poly.array_first();
 while(ptr >= 0) ( // for each note/voice
@@ -395,8 +428,8 @@ while(ptr >= 0) ( // for each note/voice
   ptr[8] = s3;
   ptr[9] = s4;
 
-  sl = s1 * o1_gain * (1 - o1_pan) + s2 * o2_gain * (1 - o2_pan) + s3 * o3_gain * (1 - o3_pan) + s4 * o4_gain * (1 - o4_pan);
-  sr = s1 * o1_gain * (1 + o1_pan) + s2 * o2_gain * (1 + o2_pan) + s3 * o3_gain * (1 + o3_pan) + s4 * o4_gain * (1 + o4_pan);
+  sl = s1 * o1_gain.smooth * (1 - o1_pan) + s2 * o2_gain.smooth * (1 - o2_pan) + s3 * o3_gain.smooth * (1 - o3_pan) + s4 * o4_gain.smooth * (1 - o4_pan);
+  sr = s1 * o1_gain.smooth * (1 + o1_pan) + s2 * o2_gain.smooth * (1 + o2_pan) + s3 * o3_gain.smooth * (1 + o3_pan) + s4 * o4_gain.smooth * (1 + o4_pan);
 
   // Apply filter
   _flt_type != 0 ? (
@@ -419,8 +452,8 @@ while(ptr >= 0) ( // for each note/voice
     sr = rbj_df1(filterbuf_r, sr);
   );
 
-  spl0 += sl * gain * envbuf[];
-  spl1 += sr * gain * envbuf[];
+  spl0 += sl * gain.smooth * envbuf[];
+  spl1 += sr * gain.smooth * envbuf[];
 
   // Note repeat, trigger fast release
   ptr[10] ? (
@@ -485,7 +518,7 @@ gfx_panel == 0 ? (
   draw_knob(260,150, 6, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(6)), 0);
   set_color(0x666666);
   gfx_x = 20; gfx_y = 130;
-  gfx_drawstr("ENVELOPE");
+  gfx_drawstr("GLOBAL ENVELOPE");
   gfx_x = 320;
   gfx_drawstr("CURVE");
   gfx_x = 320; gfx_y = 155;
@@ -593,7 +626,7 @@ gfx_panel == 5 ? (
   draw_knob(260,150, 106, "Rel", 1, 1, 5000, 1, 0, sprintf(#, "%d", slider(106)), 0);
   set_color(0x666666);
   gfx_x = 20; gfx_y = 130;
-  gfx_drawstr("ENVELOPE");
+  gfx_drawstr("FILTER ENVELOPE");
   gfx_x = 320;
   gfx_drawstr("CURVE");
   gfx_x = 320; gfx_y = 155;
