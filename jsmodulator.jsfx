@@ -106,7 +106,7 @@ import mod.wavetable.jsfx-inc
 import mod.envlib.jsfx-inc
 import mod.mouselib.jsfx-inc
 import mod.gfxlib.jsfx-inc
-import mod.zdf_filter.jsfx-inc
+import mod.rbj_filter.jsfx-inc
 
 options: gfx_hz=60 no_meter
 
@@ -281,58 +281,12 @@ function on_note(note) local (ptr, env) (
   env_a(env, 1);
 );
 
-// copy filter coeficients from buffer1 to buffer2
-function filter_copy_coefs(buf1, buf2) (
-  buf2[2] = buf1[2];
-  buf2[3] = buf1[3];
-  buf2[4] = buf1[4];
-);
-
-// wraps filter function using buffers
-function filter_setf(buf, freq, q) (
-  filter.zdf_setf(freq, q);
-  buf[2] = filter.g;
-  buf[3] = filter.r2;
-  buf[4] = filter.h;
-);
-
-// wraps filter function using buffers
-function filter_lp(buf, sample) local(lp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  lp = filter.zdf_svf_lp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  lp;
-);
-
-// wraps filter function using buffers
-function filter_bp(buf, sample) local(bp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  bp = filter.zdf_svf_bp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  bp;
-);
-
-// wraps filter function using buffers
-function filter_hp(buf, sample) local(hp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  hp = filter.zdf_svf_hp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  hp;
+function copy_filter_coefs (f1, f2) (
+  f2[0] = f1[0]; // a1
+  f2[1] = f1[1]; // a2
+  f2[2] = f1[2]; // b0
+  f2[3] = f1[3]; // b1
+  f2[4] = f1[4]; // b2
 );
 
 @slider
@@ -444,26 +398,25 @@ while(ptr >= 0) ( // for each note/voice
   sl = s1 * o1_gain * (1 - o1_pan) + s2 * o2_gain * (1 - o2_pan) + s3 * o3_gain * (1 - o3_pan) + s4 * o4_gain * (1 - o4_pan);
   sr = s1 * o1_gain * (1 + o1_pan) + s2 * o2_gain * (1 + o2_pan) + s3 * o3_gain * (1 + o3_pan) + s4 * o4_gain * (1 + o4_pan);
 
+  // Apply filter
   _flt_type != 0 ? (
     filterbuf = envelope_flt + ptr[0] * 18; // envelope buffer
     env_process(filterbuf);
-    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
-    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
-    adsr_mult = pow(22000/_flt_freq, filterbuf[0] * _flt_adsr_amt / 100);
+    multiplier = pow(22000/_flt_freq, filterbuf[0] * _flt_adsr_amt / 100);
 
-    filter_setf(filterbuf_l, _flt_freq * adsr_mult, _flt_q);
-    filter_copy_coefs(filterbuf_l, filterbuf_r);
+    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
+    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer left
 
     _flt_type == 1 ? (
-      sl = filter_lp(filterbuf_l, sl);
-      sr = filter_lp(filterbuf_r, sr);
+      rbj_lp(filterbuf_l, _flt_freq * multiplier, _flt_q);
     ) : _flt_type == 2 ? (
-      sl = filter_bp(filterbuf_l, sl);
-      sr = filter_bp(filterbuf_r, sr);
+      rbj_bp(filterbuf_l, _flt_freq * multiplier, _flt_q);
     ) : (
-      sl = filter_hp(filterbuf_l, sl);
-      sr = filter_hp(filterbuf_r, sr);
+      rbj_hp(filterbuf_l, _flt_freq * multiplier, _flt_q);
     );
+    copy_filter_coefs(filterbuf_l, filterbuf_r);
+    sl = rbj_df1(filterbuf_l, sl);
+    sr = rbj_df1(filterbuf_r, sr);
   );
 
   spl0 += sl * gain * envbuf[];
