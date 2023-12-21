@@ -191,6 +191,20 @@ function load_wave(osc*, wavenum) (
   osc.wave_init(osc.buf, osc.len);
 );
 
+function load_nextwave(osc*) (
+  wavenum = osc.wavenum;
+  wavenum += 1;
+  wavenum > 18 ? wavenum = 0;
+  load_wave(osc, wavenum);
+);
+
+function load_prevwave(osc*) (
+  wavenum = osc.wavenum;
+  wavenum -= 1;
+  wavenum < 0 ? wavenum = 18;
+  load_wave(osc, wavenum);
+);
+
 osc1.buf = 100000;
 load_wave(osc1, 0);
 
@@ -266,6 +280,9 @@ o3_gain.rc_set(0.0033);
 o3_gain.smooth = db2gain(normalizeVolSlider(o3_vol));
 o4_gain.rc_set(0.0033);
 o4_gain.smooth = db2gain(normalizeVolSlider(o4_vol));
+
+_flt_freq.rc_set(0.0033);
+_flt_freq.smooth = _flt_freq;
 
 function on_note(note) local (ptr, env) (
   ptr = poly.array_add();
@@ -368,6 +385,7 @@ o1_gain.smooth();
 o2_gain.smooth();
 o3_gain.smooth();
 o4_gain.smooth();
+_flt_freq.smooth();
 
 remove_notes.array_clear();
 ptr = poly.array_first();
@@ -435,17 +453,17 @@ while(ptr >= 0) ( // for each note/voice
   _flt_type != 0 ? (
     filterbuf = envelope_flt + ptr[0] * 18; // envelope buffer
     env_process(filterbuf);
-    multiplier = pow(22000/_flt_freq, filterbuf[0] * _flt_adsr_amt / 100);
+    multiplier = pow(22000/_flt_freq.smooth, filterbuf[0] * _flt_adsr_amt / 100);
 
     filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
     filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer left
 
     _flt_type == 1 ? (
-      rbj_lp(filterbuf_l, _flt_freq * multiplier, _flt_q);
+      rbj_lp(filterbuf_l, _flt_freq.smooth * multiplier, _flt_q);
     ) : _flt_type == 2 ? (
-      rbj_bp(filterbuf_l, _flt_freq * multiplier, _flt_q);
+      rbj_bp(filterbuf_l, _flt_freq.smooth * multiplier, _flt_q);
     ) : (
-      rbj_hp(filterbuf_l, _flt_freq * multiplier, _flt_q);
+      rbj_hp(filterbuf_l, _flt_freq.smooth * multiplier, _flt_q);
     );
     copy_filter_coefs(filterbuf_l, filterbuf_r);
     sl = rbj_df1(filterbuf_l, sl);
@@ -552,6 +570,22 @@ gfx_panel > 0 && gfx_panel < 5 ? (
       gfx_panel == 3 ? load_wave(osc3, choice - 1);
       gfx_panel == 4 ? load_wave(osc4, choice - 1);
     );
+  );
+
+  set_color(COLOR_ACTIVE);
+  gfx_triangle(20+80+5, 95-2, 20+80+5+5, 95-2 + 5, 20+80+5, 105-2);
+  mouse.left_click && mouse_in_rect(20+80+5, 95-2, 5, 10) ? (
+    gfx_panel == 1 ? load_nextwave(osc1);
+    gfx_panel == 2 ? load_nextwave(osc2);
+    gfx_panel == 3 ? load_nextwave(osc3);
+    gfx_panel == 4 ? load_nextwave(osc4);
+  );
+  gfx_triangle(20-6, 95-2, 20-6-5, 95-2+5, 20-6, 105-2);
+  mouse.left_click && mouse_in_rect(20-6-5, 95-2, 5, 10) ? (
+    gfx_panel == 1 ? load_prevwave(osc1);
+    gfx_panel == 2 ? load_prevwave(osc2);
+    gfx_panel == 3 ? load_prevwave(osc3);
+    gfx_panel == 4 ? load_prevwave(osc4);
   );
 
   draw_knob(120,50, 22+(gfx_panel-1)*20, "Semi", 0, -48, 48, 0, 1, sprintf(#, "%d", slider(22+(gfx_panel-1)*20)), 0);
